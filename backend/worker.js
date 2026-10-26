@@ -41,7 +41,7 @@ export default {async fetch(request,env){
    const clock=new Intl.DateTimeFormat('en-GB',{timeZone:'America/Toronto',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(end*1000);
    const [hour,minute]=clock.split(':').map(Number),clockMinutes=hour*60+minute;
    const remaining=end-now;
-   if(clockMinutes<540||clockMinutes>1260){await inc(db,'gives_outside_hours',now);return json({thanks:true,published:false},200,cors)}
+   if(clockMinutes<565||clockMinutes>1260){await inc(db,'gives_outside_hours',now);return json({thanks:true,published:false},200,cors)}
    if(remaining<MIN){await inc(db,'gives_under_25',now);return json({thanks:true,published:false},200,cors)}
    if(remaining>MAX){await inc(db,'gives_over_65',now);return json({thanks:true,published:false},200,cors)}
    await expire(db,now);
