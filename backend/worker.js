@@ -2,7 +2,7 @@
 // Required bindings: DB (D1), IP_SALT (secret), ADMIN_TOKEN (secret).
 // Set ALLOWED_ORIGIN to https://ollie61.github.io in Worker variables.
 const MIN=25*60, MAX=65*60, COOLDOWN=2*60*60;
-const metrics=['gives_submitted','gives_published','gives_under_25','gives_over_65','gives_expired','gives_rate_limited','checks','checks_with_match'];
+const metrics=['gives_submitted','gives_published','gives_under_25','gives_over_65','gives_outside_hours','gives_expired','gives_rate_limited','checks','checks_with_match'];
 function json(data,status=200,headers={}){return new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...headers}})}
 function day(now){return new Date(now*1000).toISOString().slice(0,10)}
 async function inc(db,metric,now){await db.prepare('INSERT INTO counters(day,metric,total) VALUES(?,?,1) ON CONFLICT(day,metric) DO UPDATE SET total=total+1').bind(day(now),metric).run()}
@@ -38,7 +38,10 @@ export default {async fetch(request,env){
    const lock=await db.prepare('INSERT INTO limits(ip_hash,last_attempt) VALUES(?,?) ON CONFLICT(ip_hash) DO UPDATE SET last_attempt=excluded.last_attempt WHERE last_attempt<=?').bind(key,now,now-COOLDOWN).run();
    if(lock.meta.changes===0){await inc(db,'gives_rate_limited',now);return json({error:'Please try again in two hours',code:'rate_limited'},429,cors)}
    await inc(db,'gives_submitted',now);
+   const clock=new Intl.DateTimeFormat('en-GB',{timeZone:'America/Toronto',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(end*1000);
+   const [hour,minute]=clock.split(':').map(Number),clockMinutes=hour*60+minute;
    const remaining=end-now;
+   if(clockMinutes<540||clockMinutes>1261){await inc(db,'gives_outside_hours',now);return json({thanks:true,published:false},200,cors)}
    if(remaining<MIN){await inc(db,'gives_under_25',now);return json({thanks:true,published:false},200,cors)}
    if(remaining>MAX){await inc(db,'gives_over_65',now);return json({thanks:true,published:false},200,cors)}
    await expire(db,now);
